@@ -233,6 +233,9 @@ __declspec(dllimport) unsigned int __stdcall timeEndPeriod(unsigned int uPeriod)
 #ifndef MAX_GAMEPADS
     #define MAX_GAMEPADS                   4        // Maximum number of gamepads supported
 #endif
+#ifndef MAX_GAMEPAD_NAME_LENGTH
+    #define MAX_GAMEPAD_NAME_LENGTH      128        // Maximum number of characters of gamepad name (byte size)
+#endif
 #ifndef MAX_GAMEPAD_AXIS
     #define MAX_GAMEPAD_AXIS               8        // Maximum number of axis supported (per gamepad)
 #endif
@@ -352,7 +355,7 @@ typedef struct CoreData {
             int lastButtonPressed;          // Register last gamepad button pressed
             int axisCount[MAX_GAMEPADS];    // Register number of available gamepad axis
             bool ready[MAX_GAMEPADS];       // Flag to know if gamepad is ready
-            char name[MAX_GAMEPADS][64];    // Gamepad name holder
+            char name[MAX_GAMEPADS][MAX_GAMEPAD_NAME_LENGTH];               // Gamepad name holder
             char currentButtonState[MAX_GAMEPADS][MAX_GAMEPAD_BUTTONS];     // Current gamepad buttons state
             char previousButtonState[MAX_GAMEPADS][MAX_GAMEPAD_BUTTONS];    // Previous gamepad buttons state
             float axisState[MAX_GAMEPADS][MAX_GAMEPAD_AXIS];                // Gamepad axis state
@@ -1931,7 +1934,7 @@ bool IsFileExtension(const char *fileName, const char *ext)
     {
 #if defined(SUPPORT_MODULE_RTEXT) && defined(SUPPORT_TEXT_MANIPULATION)
         int extCount = 0;
-        const char **checkExts = TextSplit(ext, ';', &extCount); // WARNING: Module required: rtext
+        char **checkExts = TextSplit(ext, ';', &extCount); // WARNING: Module required: rtext
 
         char fileExtLower[MAX_FILE_EXTENSION_LENGTH + 1] = { 0 };
         strncpy(fileExtLower, TextToLower(fileExt), MAX_FILE_EXTENSION_LENGTH); // WARNING: Module required: rtext
@@ -3693,7 +3696,7 @@ static void ScanDirectoryFiles(const char *basePath, FilePathList *files, const 
                     }
                     else
                     {
-                        if (TextFindIndex(filter, DIRECTORY_FILTER_TAG) >= 0)
+                        if (strstr(filter, DIRECTORY_FILTER_TAG) != NULL)
                         {
                             strcpy(files->paths[files->count], path);
                             files->count++;
@@ -3759,7 +3762,7 @@ static void ScanDirectoryFilesRecursively(const char *basePath, FilePathList *fi
                 }
                 else
                 {
-                    if ((filter != NULL) && (TextFindIndex(filter, DIRECTORY_FILTER_TAG) >= 0))
+                    if ((filter != NULL) && (strstr(filter, DIRECTORY_FILTER_TAG) != NULL))
                     {
                         strcpy(files->paths[files->count], path);
                         files->count++;
