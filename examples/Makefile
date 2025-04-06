@@ -96,7 +96,6 @@ SDL_INCLUDE_PATH      ?= $(RAYLIB_SRC_PATH)/external/SDL2/include
 SDL_LIBRARY_PATH      ?= $(RAYLIB_SRC_PATH)/external/SDL2/lib
 SDL_LIBRARIES         ?= -lSDL2 -lSDL2main
 
-
 # Use Wayland display server protocol on Linux desktop (by default it uses X11 windowing system)
 # NOTE: This variable is only used for PLATFORM_OS: LINUX
 USE_WAYLAND_DISPLAY   ?= FALSE
@@ -509,6 +508,7 @@ CORE = \
     core/core_custom_frame_control \
     core/core_custom_logging \
     core/core_drop_files \
+    core/core_high_dpi \
     core/core_input_gamepad \
     core/core_input_gestures \
     core/core_input_gestures_web \
@@ -548,7 +548,6 @@ SHAPES = \
     shapes/shapes_rectangle_scaling \
     shapes/shapes_splines_drawing \
     shapes/shapes_top_down_lights
-
 
 TEXTURES = \
     textures/textures_background_scrolling \
@@ -665,7 +664,6 @@ OTHERS = \
 ifeq ($(TARGET_PLATFORM), PLATFORM_DESKTOP_GFLW)
     OTHERS += others/rlgl_standalone
 endif
-
 
 CURRENT_MAKEFILE = $(lastword $(MAKEFILE_LIST))
 
