@@ -3996,7 +3996,7 @@ bool CheckCollisionBoxes(BoundingBox box1, BoundingBox box2)
 {
     bool collision = true;
 
-    if ((box1.max.x >= box2.min.x) && (box1.min.x <= box2.max.x))
+    if ((box1.max.x > box2.min.x) && (box1.min.x < box2.max.x))
     {
         if ((box1.max.y < box2.min.y) || (box1.min.y > box2.max.y)) collision = false;
         if ((box1.max.z < box2.min.z) || (box1.min.z > box2.max.z)) collision = false;
