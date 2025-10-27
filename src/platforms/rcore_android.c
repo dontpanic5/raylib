@@ -49,7 +49,7 @@
 #include <android_native_app_glue.h>    // Required for: android_app struct and activity management
 #include <android/window.h>             // Required for: AWINDOW_FLAG_FULLSCREEN definition and others
 //#include <android/sensor.h>           // Required for: Android sensors functions (accelerometer, gyroscope, light...)
-#include <jni.h>                        // Required for: JNIEnv and JavaVM [Used in OpenURL()]
+#include <jni.h>                        // Required for: JNIEnv and JavaVM [Used in OpenURL() and GetCurrentMonitor()]
 
 #include <EGL/egl.h>                    // Native platform windowing system interface
 
@@ -446,8 +446,35 @@ int GetMonitorCount(void)
 // Get current monitor where window is placed
 int GetCurrentMonitor(void)
 {
-    TRACELOG(LOG_WARNING, "GetCurrentMonitor() not implemented on target platform");
-    return 0;
+    int displayId = -1;
+    JNIEnv *env = NULL;
+    JavaVM *vm = platform.app->activity->vm;
+    (*vm)->AttachCurrentThread(vm, &env, NULL);
+
+    jobject activity = platform.app->activity->clazz;
+    jclass activityClass = (*env)->GetObjectClass(env, activity);
+
+    jmethodID getDisplayMethod = (*env)->GetMethodID(env, activityClass, "getDisplay", "()Landroid/view/Display;");
+
+    jobject display = (*env)->CallObjectMethod(env, activity, getDisplayMethod);
+
+    if (display == NULL)
+    {
+        TRACELOG(LOG_ERROR, "GetCurrentMonitor() couldn't get the display object");
+    }
+    else
+    {
+        jclass displayClass = (*env)->FindClass(env, "android/view/Display");
+        jmethodID getDisplayIdMethod = (*env)->GetMethodID(env, displayClass, "getDisplayId", "()I");
+        displayId = (int)(*env)->CallIntMethod(env, display, getDisplayIdMethod);
+        (*env)->DeleteLocalRef(env, displayClass);
+    }
+
+    (*env)->DeleteLocalRef(env, activityClass);
+    (*env)->DeleteLocalRef(env, display);
+
+    (*vm)->DetachCurrentThread(vm);
+    return displayId;
 }
 
 // Get selected monitor position
@@ -560,7 +587,7 @@ void EnableCursor(void)
     // Set cursor position in the middle
     SetMousePosition(CORE.Window.screen.width/2, CORE.Window.screen.height/2);
 
-    CORE.Input.Mouse.cursorHidden = false;
+    CORE.Input.Mouse.cursorLocked = false;
 }
 
 // Disables cursor (lock cursor)
@@ -569,7 +596,7 @@ void DisableCursor(void)
     // Set cursor position in the middle
     SetMousePosition(CORE.Window.screen.width/2, CORE.Window.screen.height/2);
 
-    CORE.Input.Mouse.cursorHidden = true;
+    CORE.Input.Mouse.cursorLocked = true;
 }
 
 // Swap back buffer with front buffer (screen drawing)

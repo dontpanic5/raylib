@@ -235,20 +235,22 @@ endif
 # NOTE: By default use OpenGL 3.3 on desktop platforms
 ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_GLFW)
     GRAPHICS ?= GRAPHICS_API_OPENGL_33
-    #GRAPHICS = GRAPHICS_API_OPENGL_11      # Uncomment to use OpenGL 1.1
-    #GRAPHICS = GRAPHICS_API_OPENGL_21      # Uncomment to use OpenGL 2.1
-    #GRAPHICS = GRAPHICS_API_OPENGL_43      # Uncomment to use OpenGL 4.3
-    #GRAPHICS = GRAPHICS_API_OPENGL_ES2     # Uncomment to use OpenGL ES 2.0 (ANGLE)
+    #GRAPHICS = GRAPHICS_API_OPENGL_11_SOFTWARE # Uncomment to use software rendering
+    #GRAPHICS = GRAPHICS_API_OPENGL_11          # Uncomment to use OpenGL 1.1
+    #GRAPHICS = GRAPHICS_API_OPENGL_21          # Uncomment to use OpenGL 2.1
+    #GRAPHICS = GRAPHICS_API_OPENGL_43          # Uncomment to use OpenGL 4.3
+    #GRAPHICS = GRAPHICS_API_OPENGL_ES2         # Uncomment to use OpenGL ES 2.0 (ANGLE)
 endif
 ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_SDL)
     GRAPHICS ?= GRAPHICS_API_OPENGL_33
 endif
 ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_RGFW)
     GRAPHICS ?= GRAPHICS_API_OPENGL_33
-    #GRAPHICS = GRAPHICS_API_OPENGL_11      # Uncomment to use OpenGL 1.1
-    #GRAPHICS = GRAPHICS_API_OPENGL_21      # Uncomment to use OpenGL 2.1
-    #GRAPHICS = GRAPHICS_API_OPENGL_43      # Uncomment to use OpenGL 4.3
-    #GRAPHICS = GRAPHICS_API_OPENGL_ES2     # Uncomment to use OpenGL ES 2.0 (ANGLE)
+    #GRAPHICS = GRAPHICS_API_OPENGL_11_SOFTWARE # Uncomment to use software rendering
+    #GRAPHICS = GRAPHICS_API_OPENGL_11          # Uncomment to use OpenGL 1.1
+    #GRAPHICS = GRAPHICS_API_OPENGL_21          # Uncomment to use OpenGL 2.1
+    #GRAPHICS = GRAPHICS_API_OPENGL_43          # Uncomment to use OpenGL 4.3
+    #GRAPHICS = GRAPHICS_API_OPENGL_ES2         # Uncomment to use OpenGL ES 2.0 (ANGLE)
 endif
 ifeq ($(TARGET_PLATFORM),PLATFORM_DRM)
     # On DRM OpenGL ES 2.0 must be used
@@ -281,7 +283,7 @@ ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_GLFW)
     endif
 endif
 ifeq ($(TARGET_PLATFORM),PLATFORM_DRM)
-    ifeq ($(USE_RPI_CROSS_COMPILER),TRUE)
+    ifeq ($(USE_RPI_CROSSCOMPILER),TRUE)
         # Define RPI cross-compiler
         #CC = armv6j-hardfloat-linux-gnueabi-gcc
         CC = $(RPI_TOOLCHAIN)/bin/$(RPI_TOOLCHAIN_NAME)-gcc
@@ -340,6 +342,10 @@ endif
 
 ifeq ($(PLATFORM_OS), LINUX)
     CFLAGS += -fPIC
+endif
+
+ifeq ($(PLATFORM_OS),WINDOWS)
+    CFLAGS += -DUNICODE
 endif
 
 ifeq ($(RAYLIB_BUILD_MODE),DEBUG)
@@ -513,7 +519,7 @@ endif
 #------------------------------------------------------------------------------------------------
 LDFLAGS = $(CUSTOM_LDFLAGS) -L. -L$(RAYLIB_RELEASE_PATH)
 
-ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_GLFW)
+ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM),PLATFORM_DESKTOP_GLFW PLATFORM_DESKTOP_SDL PLATFORM_DESKTOP_RGFW))
     ifeq ($(PLATFORM_OS),WINDOWS)
         ifneq ($(CC), tcc)
             LDFLAGS += -Wl,--out-implib,$(RAYLIB_RELEASE_PATH)/lib$(RAYLIB_LIB_NAME)dll.a
@@ -530,7 +536,6 @@ ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_GLFW)
     endif
 endif
 ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_SDL)
-    LDFLAGS += -Wl,-soname,lib$(RAYLIB_LIB_NAME).so.$(RAYLIB_API_VERSION)
     LDFLAGS += -L$(SDL_LIBRARY_PATH)
 endif
 ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM),PLATFORM_WEB PLATFORM_WEB_RGFW))
@@ -627,6 +632,9 @@ ifeq ($(TARGET_PLATFORM),PLATFORM_DRM)
     ifeq ($(RAYLIB_MODULE_AUDIO),TRUE)
         LDLIBS += -latomic
     endif
+endif
+ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_WIN32)
+    LDLIBS = -lgdi32 -lwinmm -lopengl32 -lshcore
 endif
 ifeq ($(TARGET_PLATFORM),PLATFORM_ANDROID)
     LDLIBS = -llog -landroid -lEGL -lGLESv2 -lOpenSLES -lc -lm
@@ -868,7 +876,7 @@ clean:	clean_shell_$(PLATFORM_SHELL)
 	@echo "removed all generated files!"
 
 clean_shell_sh:
-	rm -fv *.o $(RAYLIB_RELEASE_PATH)/lib$(RAYLIB_LIB_NAME).a $(RAYLIB_RELEASE_PATH)/lib$(RAYLIB_LIB_NAME).bc $(RAYLIB_RELEASE_PATH)/lib$(RAYLIB_LIB_NAME).so* raygui.c $(RAYLIB_RELEASE_PATH)/*-protocol.h $(RAYLIB_RELEASE_PATH)/*-protocol-code.h
+	rm -fv *.o $(RAYLIB_RELEASE_PATH)/lib$(RAYLIB_LIB_NAME).a $(RAYLIB_RELEASE_PATH)/lib$(RAYLIB_LIB_NAME).web.a $(RAYLIB_RELEASE_PATH)/lib$(RAYLIB_LIB_NAME).so* raygui.c $(RAYLIB_RELEASE_PATH)/*-protocol.h $(RAYLIB_RELEASE_PATH)/*-protocol-code.h
 ifeq ($(TARGET_PLATFORM),PLATFORM_ANDROID)
 	rm -fv $(NATIVE_APP_GLUE)/android_native_app_glue.o
 endif
@@ -879,6 +887,7 @@ clean_shell_cmd:
 	del *.o /s
 	cd $(RAYLIB_RELEASE_PATH) & \
 	del lib$(RAYLIB_LIB_NAME).a /s & \
+        del lib$(RAYLIB_LIB_NAME).web.a /s & \
 	del lib$(RAYLIB_LIB_NAME)dll.a /s & \
 	del $(RAYLIB_LIB_NAME).dll /s & \
 	del raygui.c /s & \
