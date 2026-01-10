@@ -77,7 +77,7 @@ RAYLIB_SRC_PATH       ?= ../src
 
 # Locations of raylib.h and libraylib.a/libraylib.so
 # NOTE: Those variables are only used for PLATFORM_OS: LINUX, BSD
-DESTDIR ?= /usr/local
+DESTDIR               ?= /usr/local
 RAYLIB_INCLUDE_PATH   ?= $(DESTDIR)/include
 RAYLIB_LIB_PATH       ?= $(DESTDIR)/lib
 
@@ -106,6 +106,9 @@ BUILD_WEB_SHELL       ?= $(RAYLIB_PATH)/src/minshell.html
 BUILD_WEB_HEAP_SIZE   ?= 134217728
 BUILD_WEB_RESOURCES   ?= TRUE
 BUILD_WEB_RESOURCES_PATH  ?= $(dir $<)resources@resources
+# Use WebGL2 backend (OpenGL 3.0)
+# WARNING: Requires raylib compiled with GRAPHICS_API_OPENGL_ES3
+BUILD_WEB_WEBGL2      ?= FALSE
 
 # Determine PLATFORM_OS when required
 ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM),PLATFORM_DESKTOP_GLFW PLATFORM_DESKTOP_SDL PLATFORM_DESKTOP_RGFW PLATFORM_WEB PLATFORM_WEB_RGFW))
@@ -186,7 +189,7 @@ ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_GLFW)
     endif
 endif
 ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM),PLATFORM_WEB PLATFORM_WEB_RGFW))
-	# HTML5 emscripten compiler
+    # HTML5 emscripten compiler
     # WARNING: To compile to HTML5, code must be redesigned
     # to use emscripten.h and emscripten_set_main_loop()
     CC = emcc
@@ -228,7 +231,7 @@ endif
 #  -Wno-missing-braces  ignore invalid warning (GCC bug 53119)
 #  -Wno-unused-value    ignore unused return values of some functions (i.e. fread())
 #  -D_DEFAULT_SOURCE    use with -std=c99 on Linux and PLATFORM_WEB, required for timespec
-CFLAGS = -Wall -std=c99 -D_DEFAULT_SOURCE -Wno-missing-braces -Wunused-result
+CFLAGS = -Wall -std=c99 -D_DEFAULT_SOURCE -Wno-missing-braces -Wno-unused-result
 
 ifeq ($(BUILD_MODE),DEBUG)
     CFLAGS += -g -D_DEBUG
@@ -269,8 +272,8 @@ endif
 # NOTE: Some external/extras libraries could be required (stb, easings...)
 #------------------------------------------------------------------------------------------------
 INCLUDE_PATHS = -I. -I$(RAYLIB_PATH)/src -I$(RAYLIB_PATH)/src/external $(EXTRA_INCLUDE_PATHS)
-# Define additional directories containing required header files
 
+# Define additional directories containing required header files
 ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_GLFW)
     ifeq ($(PLATFORM_OS),BSD)
         INCLUDE_PATHS += -I$(RAYLIB_INCLUDE_PATH) -I/usr/pkg/include -I/usr/X11R7/include
@@ -285,11 +288,6 @@ endif
 ifeq ($(TARGET_PLATFORM),PLATFORM_DRM)
     INCLUDE_PATHS += -I$(RAYLIB_INCLUDE_PATH)
     INCLUDE_PATHS += -I/usr/include/libdrm
-endif
-
-# Include GLFW required for examples/others/rlgl_standalone.c
-ifeq ($(USE_EXTERNAL_GLFW),FALSE)
-all others: INCLUDE_PATHS += -I$(RAYLIB_PATH)/src/external/glfw/include
 endif
 
 # Define library paths containing required libs: LDFLAGS
@@ -340,16 +338,22 @@ ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM),PLATFORM_WEB PLATFORM_WEB_R
     # --preload-file resources   # specify a resources folder for data compilation
     # --source-map-base          # allow debugging in browser with source map
     # --shell-file shell.html    # define a custom shell .html and output extension
-    LDFLAGS += -sTOTAL_MEMORY=$(BUILD_WEB_HEAP_SIZE) -sFORCE_FILESYSTEM=1 -sMINIFY_HTML=0
+    LDFLAGS += -sTOTAL_MEMORY=$(BUILD_WEB_HEAP_SIZE) -sFORCE_FILESYSTEM=1 -sEXPORTED_RUNTIME_METHODS=ccall -sMINIFY_HTML=0
 
     # Using GLFW3 library (instead of RGFW)
     ifeq ($(TARGET_PLATFORM),PLATFORM_WEB)
         LDFLAGS += -sUSE_GLFW=3
     endif
 
-	# Build using asyncify
+    # Build using asyncify
     ifeq ($(BUILD_WEB_ASYNCIFY),TRUE)
         LDFLAGS += -sASYNCIFY
+    endif
+
+    # NOTE: Flags required for WebGL 2.0 (OpenGL ES 3.0)
+    # WARNING: Requires raylib compiled with GRAPHICS_API_OPENGL_ES3
+    ifeq ($(BUILD_WEB_WEBGL2),TRUE)
+        LDFLAGS += -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
     endif
 
     # Add resources building if required
@@ -482,21 +486,37 @@ endif
 ifeq ($(TARGET_PLATFORM),PLATFORM_DRM)
     # Libraries for DRM compiling
     # NOTE: Required packages: libasound2-dev (ALSA)
-    LDLIBS = -lraylib -lGLESv2 -lEGL -lpthread -lrt -lm -lgbm -ldrm -ldl -latomic
+    LDLIBS = -lraylib -lGLESv2 -lEGL -ldrm -lgbm -lpthread -lrt -lm -ldl -latomic
+    # TODO: Examples compilation does not define GRAPHICS, is it required?
+    #ifeq ($(GRAPHICS),GRAPHICS_API_OPENGL_ES2)
+    #    LDLIBS += -lGLESv2 -lEGL
+    #endif
+endif
+ifeq ($(TARGET_PLATFORM),PLATFORM_DESKTOP_WIN32)
+    # Libraries for Windows desktop compilation
+    LDFLAGS += -L..\src
+    LDLIBS = -lraylib -lgdi32 -lwinmm -lshcore
+    ifneq ($(GRAPHICS),GRAPHICS_API_OPENGL_11_SOFTWARE)
+        LDLIBS += -lopengl32
+    endif
 endif
 ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM),PLATFORM_WEB PLATFORM_WEB_RGFW))
     # Libraries for web (HTML5) compiling
     LDLIBS = $(RAYLIB_RELEASE_PATH)/libraylib.web.a
 endif
 
+CURRENT_MAKEFILE = $(lastword $(MAKEFILE_LIST))
+
 # Define source code object files required
 #------------------------------------------------------------------------------------------------
+#EXAMPLES_LIST_START
 CORE = \
     core/core_2d_camera \
     core/core_2d_camera_mouse_zoom \
     core/core_2d_camera_platformer \
     core/core_2d_camera_split_screen \
     core/core_3d_camera_first_person \
+    core/core_3d_camera_fps \
     core/core_3d_camera_free \
     core/core_3d_camera_mode \
     core/core_3d_camera_split_screen \
@@ -504,25 +524,35 @@ CORE = \
     core/core_automation_events \
     core/core_basic_screen_manager \
     core/core_basic_window \
-    core/core_basic_window_web \
+    core/core_clipboard_text \
+    core/core_compute_hash \
     core/core_custom_frame_control \
     core/core_custom_logging \
+    core/core_delta_time \
+    core/core_directory_files \
     core/core_drop_files \
     core/core_high_dpi \
+    core/core_highdpi_testbed \
+    core/core_input_actions \
     core/core_input_gamepad \
     core/core_input_gestures \
-    core/core_input_gestures_web \
+    core/core_input_gestures_testbed \
     core/core_input_keys \
     core/core_input_mouse \
     core/core_input_mouse_wheel \
     core/core_input_multitouch \
     core/core_input_virtual_controls \
-    core/core_loading_thread \
+    core/core_monitor_detector \
     core/core_random_sequence \
     core/core_random_values \
+    core/core_render_texture \
     core/core_scissor_test \
+    core/core_screen_recording \
     core/core_smooth_pixelperfect \
     core/core_storage_values \
+    core/core_text_file_loading \
+    core/core_undo_redo \
+    core/core_viewport_scaling \
     core/core_vr_simulator \
     core/core_window_flags \
     core/core_window_letterbox \
@@ -530,31 +560,50 @@ CORE = \
     core/core_world_screen
 
 SHAPES = \
+    shapes/shapes_ball_physics \
     shapes/shapes_basic_shapes \
     shapes/shapes_bouncing_ball \
+    shapes/shapes_bullet_hell \
+    shapes/shapes_circle_sector_drawing \
+    shapes/shapes_clock_of_clocks \
     shapes/shapes_collision_area \
     shapes/shapes_colors_palette \
-    shapes/shapes_draw_circle_sector \
-    shapes/shapes_draw_rectangle_rounded \
-    shapes/shapes_draw_ring \
-    shapes/shapes_easings_ball_anim \
-    shapes/shapes_easings_box_anim \
-    shapes/shapes_easings_rectangle_array \
+    shapes/shapes_dashed_line \
+    shapes/shapes_digital_clock \
+    shapes/shapes_double_pendulum \
+    shapes/shapes_easings_ball \
+    shapes/shapes_easings_box \
+    shapes/shapes_easings_rectangles \
     shapes/shapes_following_eyes \
+    shapes/shapes_kaleidoscope \
     shapes/shapes_lines_bezier \
+    shapes/shapes_lines_drawing \
     shapes/shapes_logo_raylib \
     shapes/shapes_logo_raylib_anim \
+    shapes/shapes_math_angle_rotation \
+    shapes/shapes_math_sine_cosine \
+    shapes/shapes_mouse_trail \
+    shapes/shapes_penrose_tile \
+    shapes/shapes_pie_chart \
     shapes/shapes_rectangle_advanced \
     shapes/shapes_rectangle_scaling \
+    shapes/shapes_recursive_tree \
+    shapes/shapes_ring_drawing \
+    shapes/shapes_rlgl_color_wheel \
+    shapes/shapes_rlgl_triangle \
+    shapes/shapes_rounded_rectangle_drawing \
+    shapes/shapes_simple_particles \
     shapes/shapes_splines_drawing \
+    shapes/shapes_starfield_effect \
     shapes/shapes_top_down_lights \
-    shapes/shapes_digital_clock
+    shapes/shapes_triangle_strip \
+    shapes/shapes_vector_angle
 
 TEXTURES = \
     textures/textures_background_scrolling \
     textures/textures_blend_modes \
     textures/textures_bunnymark \
-    textures/textures_draw_tiled \
+    textures/textures_cellular_automata \
     textures/textures_fog_of_war \
     textures/textures_gif_player \
     textures/textures_image_channel \
@@ -569,40 +618,49 @@ TEXTURES = \
     textures/textures_mouse_painting \
     textures/textures_npatch_drawing \
     textures/textures_particles_blending \
-    textures/textures_polygon \
+    textures/textures_polygon_drawing \
     textures/textures_raw_data \
-    textures/textures_sprite_anim \
+    textures/textures_screen_buffer \
+    textures/textures_sprite_animation \
     textures/textures_sprite_button \
     textures/textures_sprite_explosion \
+    textures/textures_sprite_stacking \
     textures/textures_srcrec_dstrec \
     textures/textures_textured_curve \
+    textures/textures_tiled_drawing \
     textures/textures_to_image
 
 TEXT = \
+    text/text_3d_drawing \
     text/text_codepoints_loading \
-    text/text_draw_3d \
     text/text_font_filters \
     text/text_font_loading \
     text/text_font_sdf \
     text/text_font_spritefont \
     text/text_format_text \
+    text/text_inline_styling \
     text/text_input_box \
-    text/text_raylib_fonts \
     text/text_rectangle_bounds \
-    text/text_unicode \
+    text/text_sprite_fonts \
+    text/text_strings_management \
+    text/text_unicode_emojis \
+    text/text_unicode_ranges \
+    text/text_words_alignment \
     text/text_writing_anim
 
 MODELS = \
-    models/models_animation \
-    models/models_billboard \
+    models/models_animation_gpu_skinning \
+    models/models_animation_playing \
+    models/models_basic_voxel \
+    models/models_billboard_rendering \
     models/models_bone_socket \
     models/models_box_collisions \
-    models/models_cubicmap \
-    models/models_draw_cube_texture \
+    models/models_cubicmap_rendering \
+    models/models_decals \
+    models/models_directional_billboard \
     models/models_first_person_maze \
     models/models_geometric_shapes \
-    models/models_gpu_skinning \
-    models/models_heightmap \
+    models/models_heightmap_rendering \
     models/models_loading \
     models/models_loading_gltf \
     models/models_loading_m3d \
@@ -612,39 +670,46 @@ MODELS = \
     models/models_orthographic_projection \
     models/models_point_rendering \
     models/models_rlgl_solar_system \
-    models/models_skybox \
+    models/models_rotating_cube \
+    models/models_skybox_rendering \
     models/models_tesseract_view \
+    models/models_textured_cube \
     models/models_waving_cubes \
     models/models_yaw_pitch_roll
 
 SHADERS = \
+    shaders/shaders_ascii_rendering \
     shaders/shaders_basic_lighting \
     shaders/shaders_basic_pbr \
+    shaders/shaders_color_correction \
     shaders/shaders_custom_uniform \
-    shaders/shaders_deferred_render \
-    shaders/shaders_eratosthenes \
-    shaders/shaders_fog \
+    shaders/shaders_deferred_rendering \
+    shaders/shaders_depth_rendering \
+    shaders/shaders_depth_writing \
+    shaders/shaders_eratosthenes_sieve \
+    shaders/shaders_fog_rendering \
+    shaders/shaders_game_of_life \
     shaders/shaders_hot_reloading \
-    shaders/shaders_hybrid_render \
+    shaders/shaders_hybrid_rendering \
     shaders/shaders_julia_set \
-    shaders/shaders_lightmap \
+    shaders/shaders_lightmap_rendering \
+    shaders/shaders_mandelbrot_set \
     shaders/shaders_mesh_instancing \
     shaders/shaders_model_shader \
     shaders/shaders_multi_sample2d \
+    shaders/shaders_normalmap_rendering \
     shaders/shaders_palette_switch \
     shaders/shaders_postprocessing \
-    shaders/shaders_raymarching \
+    shaders/shaders_raymarching_rendering \
     shaders/shaders_rounded_rectangle \
-    shaders/shaders_shadowmap \
+    shaders/shaders_shadowmap_rendering \
     shaders/shaders_shapes_textures \
     shaders/shaders_simple_mask \
-    shaders/shaders_spotlight \
-    shaders/shaders_texture_drawing \
+    shaders/shaders_spotlight_rendering \
     shaders/shaders_texture_outline \
+    shaders/shaders_texture_rendering \
     shaders/shaders_texture_tiling \
     shaders/shaders_texture_waves \
-    shaders/shaders_view_depth \
-    shaders/shaders_write_depth \
     shaders/shaders_vertex_displacement
 
 AUDIO = \
@@ -655,25 +720,22 @@ AUDIO = \
     audio/audio_sound_loading \
     audio/audio_sound_multi \
     audio/audio_sound_positioning \
+    audio/audio_spectrum_visualizer \
     audio/audio_stream_effects
 
 OTHERS = \
     others/easings_testbed \
     others/embedded_files_loading \
     others/raylib_opengl_interop \
-    others/raymath_vector_angle \
-    others/rlgl_compute_shader
-
-ifeq ($(TARGET_PLATFORM), PLATFORM_DESKTOP_GFLW)
-    OTHERS += others/rlgl_standalone
-endif
-
-CURRENT_MAKEFILE = $(lastword $(MAKEFILE_LIST))
+    others/rlgl_compute_shader \
+    others/rlgl_standalone \
+    others/web_basic_window
+#EXAMPLES_LIST_END
 
 # Define processes to execute
 #------------------------------------------------------------------------------------------------
 # Default target entry
-all: $(CORE) $(SHAPES) $(TEXT) $(TEXTURES) $(MODELS) $(SHADERS) $(AUDIO) $(OTHERS)
+all: $(CORE) $(SHAPES) $(TEXT) $(TEXTURES) $(MODELS) $(SHADERS) $(AUDIO)
 
 core: $(CORE)
 shapes: $(SHAPES)
@@ -682,7 +744,6 @@ text: $(TEXT)
 models: $(MODELS)
 shaders: $(SHADERS)
 audio: $(AUDIO)
-others: $(OTHERS)
 
 # Generic compilation pattern
 # NOTE: Examples must be ready for Android compilation!
