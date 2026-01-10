@@ -6,7 +6,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2018-2025 Ahmad Fatoum & Ramon Santamaria (@raysan5)
+*   Copyright (c) 2018-2026 Ahmad Fatoum and Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -30,7 +30,7 @@
 
 //------------------------------------------------------------------------------------
 // Module selection - Some modules could be avoided
-// Mandatory modules: rcore, rlgl, utils
+// Mandatory modules: rcore, rlgl
 //------------------------------------------------------------------------------------
 #define SUPPORT_MODULE_RSHAPES          1
 #define SUPPORT_MODULE_RTEXTURES        1
@@ -41,6 +41,16 @@
 //------------------------------------------------------------------------------------
 // Module: rcore - Configuration Flags
 //------------------------------------------------------------------------------------
+// Standard file io library (stdio.h) included
+#define SUPPORT_STANDARD_FILEIO         1
+// Show TRACELOG() output messages
+#define SUPPORT_TRACELOG                1
+#if defined(SUPPORT_TRACELOG)
+    #define TRACELOG(level, ...) TraceLog(level, __VA_ARGS__)
+#else
+    #define TRACELOG(level, ...) (void)0
+#endif
+
 // Camera module is included (rcamera.h) and multiple predefined cameras are available: free, 1st/3rd person, orbital
 #define SUPPORT_CAMERA_SYSTEM           1
 // Gestures module is included (rgestures.h) to support gestures detection: tap, hold, swipe, drag
@@ -72,7 +82,7 @@
 
 // Support for clipboard image loading
 // NOTE: Only working on SDL3, GLFW (Windows) and RGFW (Windows)
-#define SUPPORT_CLIPBOARD_IMAGE    1
+#define SUPPORT_CLIPBOARD_IMAGE         1
 
 // NOTE: Clipboard image loading requires support for some image file formats
 // TODO: Those defines should probably be removed from here, letting the user manage them
@@ -96,6 +106,7 @@
 
 // rcore: Configuration values
 //------------------------------------------------------------------------------------
+#define MAX_TRACELOG_MSG_LENGTH       256       // Max length of one trace-log message
 #define MAX_FILEPATH_CAPACITY        8192       // Maximum file paths capacity
 #define MAX_FILEPATH_LENGTH          4096       // Maximum length for filepaths (Linux PATH_MAX default value)
 
@@ -105,7 +116,7 @@
 #define MAX_GAMEPAD_AXES                8       // Maximum number of axes supported (per gamepad)
 #define MAX_GAMEPAD_BUTTONS            32       // Maximum number of buttons supported (per gamepad)
 #define MAX_GAMEPAD_VIBRATION_TIME      2.0f    // Maximum vibration time in seconds
-#define MAX_TOUCH_POINTS                8       // Maximum number of touch points supported
+#define MAX_TOUCH_POINTS               10       // Maximum number of touch points supported
 #define MAX_KEY_PRESSED_QUEUE          16       // Maximum number of keys in the key input queue
 #define MAX_CHAR_PRESSED_QUEUE         16       // Maximum number of characters in the char input queue
 
@@ -280,19 +291,5 @@
 #define AUDIO_DEVICE_SAMPLE_RATE           0    // Device sample rate (device default)
 
 #define MAX_AUDIO_BUFFER_POOL_CHANNELS    16    // Maximum number of audio pool channels
-
-//------------------------------------------------------------------------------------
-// Module: utils - Configuration Flags
-//------------------------------------------------------------------------------------
-// Standard file io library (stdio.h) included
-#define SUPPORT_STANDARD_FILEIO         1
-// Show TRACELOG() output messages
-// NOTE: By default LOG_DEBUG traces not shown
-#define SUPPORT_TRACELOG                1
-//#define SUPPORT_TRACELOG_DEBUG          1
-
-// utils: Configuration values
-//------------------------------------------------------------------------------------
-#define MAX_TRACELOG_MSG_LENGTH       256       // Max length of one trace-log message
 
 #endif // CONFIG_H
