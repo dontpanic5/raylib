@@ -100,7 +100,7 @@
     #include <unistd.h>                 // Required for: usleep()
 
     //#define GLFW_EXPOSE_NATIVE_COCOA    // WARNING: Fails due to type redefinition
-    void *glfwGetCocoaWindow(GLFWwindow* handle);
+    void *glfwGetCocoaWindow(GLFWwindow *handle);
     #include "GLFW/glfw3native.h"       // Required for: glfwGetCocoaWindow()
 #endif
 
@@ -224,8 +224,8 @@ void ToggleFullscreen(void)
         if (FLAG_IS_SET(CORE.Window.flags, FLAG_WINDOW_HIGHDPI))
         {
             Vector2 scaleDpi = GetWindowScaleDPI();
-            CORE.Window.screen.width = (unsigned int)(CORE.Window.screen.width * scaleDpi.x);
-            CORE.Window.screen.height = (unsigned int)(CORE.Window.screen.height * scaleDpi.y);
+            CORE.Window.screen.width = (unsigned int)(CORE.Window.screen.width*scaleDpi.x);
+            CORE.Window.screen.height = (unsigned int)(CORE.Window.screen.height*scaleDpi.y);
         }
 #endif
 
@@ -303,8 +303,8 @@ void ToggleBorderlessWindowed(void)
                 if (FLAG_IS_SET(CORE.Window.flags, FLAG_WINDOW_HIGHDPI))
                 {
                     Vector2 scaleDpi = GetWindowScaleDPI();
-                    CORE.Window.screen.width = (unsigned int)(CORE.Window.screen.width * scaleDpi.x);
-                    CORE.Window.screen.height = (unsigned int)(CORE.Window.screen.height * scaleDpi.y);
+                    CORE.Window.screen.width = (unsigned int)(CORE.Window.screen.width*scaleDpi.x);
+                    CORE.Window.screen.height = (unsigned int)(CORE.Window.screen.height*scaleDpi.y);
                 }
             #endif
 
@@ -1049,14 +1049,14 @@ Image GetClipboardImage(void)
 #if defined(SUPPORT_CLIPBOARD_IMAGE)
 #if defined(_WIN32)
     unsigned long long int dataSize = 0;
-    void *fileData = NULL;
+    void *bmpData = NULL;
     int width = 0;
     int height = 0;
 
-    fileData  = (void *)Win32GetClipboardImageData(&width, &height, &dataSize);
+    bmpData  = (void *)Win32GetClipboardImageData(&width, &height, &dataSize);
 
-    if (fileData == NULL) TRACELOG(LOG_WARNING, "Clipboard image: Couldn't get clipboard data.");
-    else image = LoadImageFromMemory(".bmp", (const unsigned char *)fileData, (int)dataSize);
+    if (bmpData == NULL) TRACELOG(LOG_WARNING, "Clipboard image: Couldn't get clipboard data.");
+    else image = LoadImageFromMemory(".bmp", (const unsigned char *)bmpData, (int)dataSize);
 #else
     TRACELOG(LOG_WARNING, "GetClipboardImage() not implemented on target platform");
 #endif
@@ -1211,7 +1211,7 @@ void PollInputEvents(void)
     CORE.Input.Keyboard.charPressedQueueCount = 0;
 
     // Reset last gamepad button/axis registered state
-    CORE.Input.Gamepad.lastButtonPressed = 0;       // GAMEPAD_BUTTON_UNKNOWN
+    CORE.Input.Gamepad.lastButtonPressed = GAMEPAD_BUTTON_UNKNOWN;
     //CORE.Input.Gamepad.axisCount = 0;
 
     // Keyboard/Mouse input polling (automatically managed by GLFW3 through callback)
